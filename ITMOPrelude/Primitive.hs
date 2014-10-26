@@ -91,7 +91,6 @@ natCmp Zero (Succ _) = LT
 natCmp (Succ _) Zero = GT
 natCmp (Succ n) (Succ m) = natCmp n m
 
-
 -- n совпадает с m 
 natEq :: Nat -> Nat -> Bool
 natEq Zero     Zero     = True
