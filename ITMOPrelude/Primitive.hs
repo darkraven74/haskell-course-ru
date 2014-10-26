@@ -86,7 +86,11 @@ natOne = Succ Zero -- 1
 
 -- Сравнивает два натуральных числа
 natCmp :: Nat -> Nat -> Tri
-natCmp = undefined
+natCmp Zero Zero = EQ
+natCmp Zero (Succ _) = LT
+natCmp (Succ _) Zero = GT
+natCmp (Succ n) (Succ m) = natCmp n m
+
 
 -- n совпадает с m 
 natEq :: Nat -> Nat -> Bool
@@ -111,7 +115,9 @@ Zero     +. m = m
 infixl 6 -.
 -- Вычитание для натуральных чисел
 (-.) :: Nat -> Nat -> Nat
-n -. m = undefined
+Zero -. _ = Zero
+(Succ n) -. (Succ m) = n -. m
+n -. Zero = n
 
 infixl 7 *.
 -- Умножение для натуральных чисел
@@ -121,50 +127,68 @@ Zero     *. m = Zero
 
 -- Целое и остаток от деления n на m
 natDivMod :: Nat -> Nat -> Pair Nat Nat
-natDivMod n m = undefined
+natDivMod n m = if' (natLt n m) (Pair Zero n) (let x = natDivMod (n -. m) m in Pair (Succ (fst x)) (snd x))
 
 natDiv n = fst . natDivMod n -- Целое
 natMod n = snd . natDivMod n -- Остаток
 
 -- Поиск GCD алгоритмом Евклида (должен занимать 2 (вычислителельная часть) + 1 (тип) строчки)
 gcd :: Nat -> Nat -> Nat
-gcd = undefined
+gcd n Zero = n
+gcd n m = if' (natLt n m) (gcd m n) (gcd m (natMod n m))
 
 -------------------------------------------
 -- Целые числа
 
 -- Требуется, чтобы представление каждого числа было единственным
-data Int = UNDEFINED deriving (Show,Read)
+data Int = Pos Nat | Neg Nat deriving (Show,Read)
 
-intZero   = undefined   -- 0
-intOne    = undefined     -- 1
-intNegOne = undefined -- -1
+intZero   = Pos natZero   -- 0
+intOne    = Pos natOne     -- 1
+intNegOne = Neg natZero -- -1
 
 -- n -> - n
 intNeg :: Int -> Int
-intNeg = undefined
+intNeg (Pos Zero) = Pos Zero
+intNeg (Pos (Succ n)) = Neg n
+intNeg (Neg n) = Pos (Succ n) 
 
 -- Дальше также как для натуральных
 intCmp :: Int -> Int -> Tri
-intCmp = undefined
+intCmp (Neg _) (Pos _) = LT
+intCmp (Pos _) (Neg _) = GT
+intCmp (Pos n) (Pos m) = natCmp n m
+intCmp (Neg n) (Neg m) = natCmp m n
 
 intEq :: Int -> Int -> Bool
-intEq = undefined
+intEq (Neg _) (Pos _) = False
+intEq (Pos _) (Neg _) = False
+intEq (Pos n) (Pos m) = natEq n m
+intEq (Neg n) (Neg m) = natEq n m
 
 intLt :: Int -> Int -> Bool
-intLt = undefined
+intLt (Neg _) (Pos _) = True
+intLt (Pos _) (Neg _) = False
+intLt (Pos n) (Pos m) = natLt n m
+intLt (Neg n) (Neg m) = natLt m n
 
 infixl 6 .+., .-.
 -- У меня это единственный страшный терм во всём файле
 (.+.) :: Int -> Int -> Int
-n .+. m = undefined
+(Pos n) .+. (Pos m) = Pos (n +. m)
+(Neg n) .+. (Neg m) = Neg (n +. (Succ m))
+(Pos n) .+. (Neg m) = if' (natLt m n) (Pos (n -. m -. natOne)) (Neg (m -. n)) 
+(Neg n) .+. (Pos m) = (Pos m) .+. (Neg n)
 
 (.-.) :: Int -> Int -> Int
 n .-. m = n .+. (intNeg m)
 
 infixl 7 .*.
 (.*.) :: Int -> Int -> Int
-n .*. m = undefined
+(Pos n) .*. (Pos m) = Pos (n *. m)
+(Neg n) .*. (Neg m) = Pos ((Succ n) *. (Succ m))
+(Pos n) .*. (Neg m) = Neg ((n *. (Succ m)) -. natOne)
+(Neg n) .*. (Pos m) = (Pos m) .*. (Neg n)
 
 -------------------------------------------
 -- Рациональные числа
@@ -176,28 +200,29 @@ ratNeg (Rat x y) = Rat (intNeg x) y
 
 -- У рациональных ещё есть обратные элементы
 ratInv :: Rat -> Rat
-ratInv = undefined
+ratInv (Rat (Pos n) m) = Rat (Pos m) n
+ratInv (Rat (Neg n) m) = Rat (Neg (m -. natOne)) (n +. natOne)
 
 -- Дальше как обычно
 ratCmp :: Rat -> Rat -> Tri
-ratCmp = undefined
+ratCmp (Rat n m) (Rat x y) = intCmp (n .*. (Pos y)) (x .*. (Pos m))
 
 ratEq :: Rat -> Rat -> Bool
-ratEq = undefined
+ratEq (Rat n m) (Rat x y) = intEq (n .*. (Pos y)) (x .*. (Pos m))
 
 ratLt :: Rat -> Rat -> Bool
-ratLt = undefined
+ratLt (Rat n m) (Rat x y) = intLt (n .*. (Pos y)) (x .*. (Pos m))
 
 infixl 7 %+, %-
 (%+) :: Rat -> Rat -> Rat
-n %+ m = undefined
+(Rat n m) %+ (Rat x y) = Rat (n .*. (Pos y) .+. x .*. (Pos m)) (m *. y)
 
 (%-) :: Rat -> Rat -> Rat
 n %- m = n %+ (ratNeg m)
 
 infixl 7 %*, %/
 (%*) :: Rat -> Rat -> Rat
-n %* m = undefined
+(Rat n m) %* (Rat x y) = Rat (n .*. x) (m *. y)
 
 (%/) :: Rat -> Rat -> Rat
 n %/ m = n %* (ratInv m)
